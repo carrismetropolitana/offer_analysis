@@ -29,6 +29,7 @@ def main():
     df_problematic = db.find_problematic_trips(df_validations)
     df_problematic = preprocessing.prepare_to_zeros(df_problematic, config.DAYTYPE_FILE)
 
+
     if df_problematic is not None and not df_problematic.empty:
         suspect_trips = agg.create_suspect_trips(df_problematic)
     else:
@@ -39,7 +40,7 @@ def main():
     # Save Excel
     # -------------------------
     outputs.save_to_excel(
-        config.OUTPUT_EXCEL,
+        r"C:\Users\MarianaCosta\Desktop\output.xlsx",
         {
             "Viagens Problematicas": df_problematic, 
             "Viagens Problematicas_v1": suspect_trips, 
