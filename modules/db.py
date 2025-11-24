@@ -3,7 +3,12 @@ import pandas as pd
 import config
 
 
-def load_data(start_date: str, end_date: str, line_ids: list[int] = None) -> pd.DataFrame:
+def load_data(
+    start_date: str,
+    end_date: str,
+    line_ids: list[int] = None,
+    agency_ids: list[int] = None
+) -> pd.DataFrame:
     """
     Query MongoDB and return rides dataframe.
 
@@ -11,8 +16,8 @@ def load_data(start_date: str, end_date: str, line_ids: list[int] = None) -> pd.
     ----------
     start_date : str (YYYYMMDD)
     end_date : str (YYYYMMDD)
-    line_ids : list[int]
-        Optional list of line_ids to filter.
+    line_ids : list[int], optional
+    agency_ids : list[int], optional
 
     Returns
     -------
@@ -25,8 +30,12 @@ def load_data(start_date: str, end_date: str, line_ids: list[int] = None) -> pd.
     match_stage = {
         "operational_date": {"$gte": start_date, "$lte": end_date}
     }
+
     if line_ids:
         match_stage["line_id"] = {"$in": line_ids}
+
+    if agency_ids:
+        match_stage["agency_id"] = {"$in": agency_ids}
 
     pipeline = [
         {"$match": match_stage},
@@ -37,20 +46,27 @@ def load_data(start_date: str, end_date: str, line_ids: list[int] = None) -> pd.
                     "agency_id": "$agency_id",
                     "line_id": "$line_id",
                     "pattern_id": "$pattern_id",
-                    "hour": { "$hour": { "$toDate": "$start_time_scheduled" } },
+                    "hour": {"$hour": {"$toDate": "$start_time_scheduled"}},
                 },
                 "ride_count": {"$sum": 1},
                 "passengers_observed": {"$sum": "$passengers_observed"},
                 "extension_sum": {"$sum": "$extension_scheduled"},
             }
         },
-        {"$sort": {"_id.operational_date": 1, "_id.agency_id": 1, "_id.line_id": 1, "_id.hour": 1}},
+        {
+            "$sort": {
+                "_id.operational_date": 1,
+                "_id.agency_id": 1,
+                "_id.line_id": 1,
+                "_id.hour": 1
+            }
+        },
     ]
-
 
     results = list(collection.aggregate(pipeline))
     df = pd.DataFrame(results)
-    
+
+   
     
 # Flatten _id fields
     df["operational_date"] = df["_id"].apply(lambda x: x["operational_date"])
@@ -72,7 +88,12 @@ def load_data(start_date: str, end_date: str, line_ids: list[int] = None) -> pd.
     return df
 
 
-def load_validations(start_date: str, end_date: str, line_ids: list[int] = None) -> pd.DataFrame:
+def load_validations(
+    start_date: str,
+    end_date: str,
+    line_ids: list[int] = None,
+    agency_ids: list[int] = None
+) -> pd.DataFrame:
     """
     Query MongoDB and return validations per trip per day, with zero-validation flag.
 
@@ -81,6 +102,7 @@ def load_validations(start_date: str, end_date: str, line_ids: list[int] = None)
     start_date : str (YYYYMMDD)
     end_date : str (YYYYMMDD)
     line_ids : list[int], optional
+    agency_ids : list[int], optional
 
     Returns
     -------
@@ -93,8 +115,12 @@ def load_validations(start_date: str, end_date: str, line_ids: list[int] = None)
     match_stage = {
         "operational_date": {"$gte": start_date, "$lte": end_date}
     }
+
     if line_ids:
         match_stage["line_id"] = {"$in": line_ids}
+
+    if agency_ids:
+        match_stage["agency_id"] = {"$in": agency_ids}
 
     pipeline = [
         {"$match": match_stage},
@@ -103,6 +129,7 @@ def load_validations(start_date: str, end_date: str, line_ids: list[int] = None)
                 "_id": {
                     "operational_date": "$operational_date",
                     "trip_id": "$trip_id",
+                    "hour": {"$hour": {"$toDate": "$start_time_scheduled"}},
                     "pattern_id": "$pattern_id",
                     "agency_id": "$agency_id",
                     "start_time_scheduled": "$start_time_scheduled",
